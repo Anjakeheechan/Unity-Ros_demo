@@ -1,7 +1,8 @@
 using System;
-using System.Text.Json.Nodes;
+using Newtonsoft.Json;
 using System.Threading.Tasks;
 using UnityEngine;
+using Newtonsoft.Json.Linq;
 
 public class DataManager : MonoBehaviour
 {
@@ -40,7 +41,7 @@ public class DataManager : MonoBehaviour
 
     }
 
-    public async Task<int> SetDataAsync(JsonObject obj)
+    public int SetDataAsync(JObject obj)
     {
         try
         {
