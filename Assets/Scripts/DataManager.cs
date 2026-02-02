@@ -22,7 +22,7 @@ public class DataManager : MonoBehaviour
     public string stm_stm_CurrentState { get; set; }
     public string stm_stm_IsLiftMoving { get; set; }
     public string stm_stm_IsRobotDone { get; set; }
-    public string stm_stm_IsRobotWorking { get; set; }
+    public bool stm_stm_IsRobotWorking { get; set; }
     public string modbus_esp_Control { get; set; }
     public string stm_stm_TargetState { get; set; }
     public string stm_stm_TargetSpeedSort { get; set; }

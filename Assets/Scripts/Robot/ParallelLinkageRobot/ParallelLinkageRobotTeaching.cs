@@ -28,6 +28,10 @@ public class ParallelLinkageRobotTeaching : MonoBehaviour
     public Key saveKey = Key.K;
     public Key loadKey = Key.L;
 
+    [Header("DataManager Integration")]
+    [Tooltip("Enable automatic playback when DataManager.stm_stm_IsRobotWorking is true")]
+    public bool enableDataManagerTrigger = true;
+
     [Header("Recorded Waypoints")]
     [SerializeField]
     private List<MotorWaypoint> savedWaypoints = new List<MotorWaypoint>();
@@ -35,6 +39,9 @@ public class ParallelLinkageRobotTeaching : MonoBehaviour
     private bool isPlaying = false;
     private Coroutine playCoroutine;
     private string saveFilePath;
+    
+    // DataManager 트리거 상태 추적
+    private bool wasRobotWorkingLastFrame = false;
 
     [System.Serializable]
     public struct MotorWaypoint
@@ -86,7 +93,16 @@ public class ParallelLinkageRobotTeaching : MonoBehaviour
 
     void Update()
     {
-        if (Keyboard.current == null || robotController == null) return;
+        if (robotController == null) return;
+
+        // DataManager 트리거 기반 자동 재생/정지
+        if (enableDataManagerTrigger)
+        {
+            CheckDataManagerTrigger();
+        }
+
+        // 키보드 입력 처리
+        if (Keyboard.current == null) return;
 
         // Record
         if (recordKey != Key.None && Keyboard.current[recordKey].wasPressedThisFrame)
@@ -123,6 +139,29 @@ public class ParallelLinkageRobotTeaching : MonoBehaviour
         {
             LoadWaypoints();
         }
+    }
+
+    /// <summary>
+    /// DataManager의 stm_stm_IsRobotWorking 값을 감지하여 자동 재생/정지
+    /// </summary>
+    private void CheckDataManagerTrigger()
+    {
+        bool isRobotWorking = DataManager.Instance.stm_stm_IsRobotWorking;
+
+        // 상승 엣지: false -> true 전환 시 재생 시작
+        if (isRobotWorking && !wasRobotWorkingLastFrame)
+        {
+            Debug.Log("<color=magenta>[Teaching]</color> DataManager trigger: IsRobotWorking = true -> Starting playback");
+            PlayWaypoints();
+        }
+        // 하강 엣지: true -> false 전환 시 재생 정지
+        else if (!isRobotWorking && wasRobotWorkingLastFrame)
+        {
+            Debug.Log("<color=magenta>[Teaching]</color> DataManager trigger: IsRobotWorking = false -> Stopping playback");
+            StopPlayback();
+        }
+
+        wasRobotWorkingLastFrame = isRobotWorking;
     }
 
     [ContextMenu("Record Waypoint")]
