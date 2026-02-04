@@ -58,7 +58,7 @@ public class RTCConnector : MonoBehaviour
 
     private async Task ConnectSocket(CancellationToken ct)
     {
-        Uri uri = new Uri($"ws://127.0.0.1:5178/ws/rtc?type=Broadcaster&roomId={_roomId}");
+        Uri uri = new Uri($"ws://192.168.0.23:5178/ws/rtc?type=Broadcaster&roomId={_roomId}");
 
 
         try
