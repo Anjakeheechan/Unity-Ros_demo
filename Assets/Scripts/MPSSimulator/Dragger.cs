@@ -24,14 +24,14 @@ public class Dragger : MonoBehaviour
         {
             direction = cwDestination.position - transform.position;
 
-            if (distance < 0.1f)
+            if (distance < 0.001f)
                 transform.position = ccwDestination.position;
         }
         else
         {
             direction = ccwDestination.position - transform.position;
 
-            if (distance < 0.1f)
+            if (distance < 0.001f)
                 transform.position = cwDestination.position;
         }
 
@@ -40,7 +40,7 @@ public class Dragger : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
-        if(other.tag == "금속" || other.tag == "플라스틱")
+        if(other.tag.Contains("Box"))
         {
             other.transform.SetParent(this.transform); // 부딪힌 물체를 자식으로 설정
         }
@@ -48,7 +48,7 @@ public class Dragger : MonoBehaviour
 
     private void OnTriggerExit(Collider other)
     {
-        if (other.tag == "금속" || other.tag == "플라스틱")
+        if (other.tag.Contains("Box"))
         {
             other.transform.SetParent(null); // 부딪힌 물체를 자식으로 부터 해방
         }

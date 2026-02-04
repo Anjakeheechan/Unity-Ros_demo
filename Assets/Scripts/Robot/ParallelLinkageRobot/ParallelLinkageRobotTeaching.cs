@@ -15,6 +15,10 @@ public class ParallelLinkageRobotTeaching : MonoBehaviour
     [Tooltip("Reference to the ParallelLinkageRobotController")]
     public ParallelLinkageRobotController robotController;
 
+    [Header("Suction System Reference")]
+    [Tooltip("Reference to the RobotSuction component for suction state recording")]
+    public RobotSuction robotSuction;
+
     [Header("Playback Settings")]
     public float playbackSpeed = 30f; // Degrees per second for interpolation
     public bool loop = false;
@@ -49,19 +53,22 @@ public class ParallelLinkageRobotTeaching : MonoBehaviour
         public float motor1;
         public float motor2;
         public float motor3;
+        public bool suctionState; // 석션 상태 추가
 
-        public MotorWaypoint(float m1, float m2, float m3)
+        public MotorWaypoint(float m1, float m2, float m3, bool suction = false)
         {
             motor1 = m1;
             motor2 = m2;
             motor3 = m3;
+            suctionState = suction;
         }
 
-        public MotorWaypoint(Vector3 angles)
+        public MotorWaypoint(Vector3 angles, bool suction = false)
         {
             motor1 = angles.x;
             motor2 = angles.y;
             motor3 = angles.z;
+            suctionState = suction;
         }
 
         public Vector3 ToVector3() => new Vector3(motor1, motor2, motor3);
@@ -168,9 +175,10 @@ public class ParallelLinkageRobotTeaching : MonoBehaviour
     public void RecordWaypoint()
     {
         Vector3 current = robotController.GetTargetAngles();
-        MotorWaypoint wp = new MotorWaypoint(current);
+        bool suctionState = robotSuction != null ? robotSuction.GetSuctionState() : false;
+        MotorWaypoint wp = new MotorWaypoint(current, suctionState);
         savedWaypoints.Add(wp);
-        Debug.Log($"<color=green>[Teaching]</color> Recorded! ({wp.motor1:F1}, {wp.motor2:F1}, {wp.motor3:F1}) Total: {savedWaypoints.Count}");
+        Debug.Log($"<color=green>[Teaching]</color> Recorded! ({wp.motor1:F1}, {wp.motor2:F1}, {wp.motor3:F1}) Suction: {suctionState} Total: {savedWaypoints.Count}");
     }
 
     [ContextMenu("Clear Waypoints")]
@@ -245,6 +253,12 @@ public class ParallelLinkageRobotTeaching : MonoBehaviour
 
                 // Snap to exact
                 robotController.SetTargetAngles(target.motor1, target.motor2, target.motor3);
+                
+                // 석션 상태 적용
+                if (robotSuction != null)
+                {
+                    robotSuction.SetSuctionState(target.suctionState);
+                }
                 
                 // Small pause between waypoints
                 yield return new WaitForSeconds(0.1f);

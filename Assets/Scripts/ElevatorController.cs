@@ -6,9 +6,11 @@ public class ElevatorController : MonoBehaviour
     [SerializeField] private float moveSpeed = 50f;
     [SerializeField] private float floor1Y = 50f;
     [SerializeField] private float floor2Y = 160f;
+    [SerializeField] private float floorAgvY = 0f; // AGV 물품 수령 위치
 
     [Header("Sensor References")]
-    [SerializeField] private Transform sensor1; // Return position (Origin)
+    [SerializeField] private Transform sensor1; // 센서1 (아래쪽)
+    [SerializeField] private Transform sensor2; // 센서2 (위쪽)
     [SerializeField] private string limitBarTag = "Limitbar";
 
     private float targetY;
@@ -34,6 +36,7 @@ public class ElevatorController : MonoBehaviour
         // Input examples for testing (User can replace this with actual triggers)
         if (Input.GetKeyDown(KeyCode.Alpha1)) SetFloor(1);
         if (Input.GetKeyDown(KeyCode.Alpha2)) SetFloor(2);
+        if (Input.GetKeyDown(KeyCode.Alpha0)) SetFloor(0); // AGV 층
     }
 
     private void MoveToTarget()
@@ -66,11 +69,32 @@ public class ElevatorController : MonoBehaviour
     {
         if (isEmergencyReturning) return;
 
-        if (floor == 1) targetY = floor1Y;
+        if (floor == 0) targetY = floorAgvY; // AGV 층
+        else if (floor == 1) targetY = floor1Y;
         else if (floor == 2) targetY = floor2Y;
         
         Debug.Log($"Target set to Floor {floor}: Y = {targetY}");
     }
+
+    /// <summary>
+    /// 센서2를 사용하여 복귀 (위쪽 센서)
+    /// </summary>
+    public void ReturnToSensor2()
+    {
+        if (sensor2 == null)
+        {
+            Debug.LogWarning("Sensor2 is not assigned!");
+            return;
+        }
+        targetY = sensor2.localPosition.y;
+        Debug.Log($"Returning to Sensor2 position: Y = {targetY}");
+    }
+
+    /// <summary>
+    /// 현재 사용 중인 센서 가져오기 (sensor1 또는 sensor2)
+    /// </summary>
+    public Transform GetSensor1() => sensor1;
+    public Transform GetSensor2() => sensor2;
 
     private void OnTriggerEnter(Collider other)
     {
