@@ -146,7 +146,7 @@ public class ParallelLinkageRobotTeaching : MonoBehaviour
     /// </summary>
     private void CheckDataManagerTrigger()
     {
-        bool isRobotWorking = DataManager.Instance.stm_stm_IsRobotWorking;
+        bool isRobotWorking = DataManager.Instance.stm_stm_yolo_isrobotworking;
 
         // 상승 엣지: false -> true 전환 시 재생 시작
         if (isRobotWorking && !wasRobotWorkingLastFrame)

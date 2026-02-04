@@ -5,6 +5,9 @@ TagManager:
   serializedVersion: 3
   tags:
   - Limitbar
+  - Box_A
+  - Box_B
+  - Box_C
   layers:
   - Default
   - TransparentFX
