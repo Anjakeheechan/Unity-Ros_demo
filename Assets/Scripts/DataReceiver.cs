@@ -15,7 +15,7 @@ public class DataReceiver : MonoBehaviour
     private CancellationTokenSource _cts;
 
     // 서버 주소 설정
-    private string serverUrl = "ws://localhost:5178/ws/opc?type=unity";
+    private string serverUrl = "ws://192.168.0.23:5178/ws/opc?type=unity";
 
     async void Start()
     {
