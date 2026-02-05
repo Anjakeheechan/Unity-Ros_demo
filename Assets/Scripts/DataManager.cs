@@ -25,6 +25,8 @@ public class DataManager
     public bool stm_stm_yolo_isrobotdone { get; set; }
     public bool stm_stm_yolo_isrobotworking { get; set; }
 
+    public JObject stm_stm_yolo_boxcreated { get; set; }
+
     /// <summary>
     /// singleton 설정
     /// 사용하려면 DataManager.Instance 로 접근하면 됨
@@ -80,7 +82,10 @@ public class DataManager
                 case 5:
                     stm_stm_yolo_currentstate = "EMERGENCYSTOP";
                     break;
-            }
+            };
+
+            // json 변환
+            stm_stm_yolo_boxcreated = JsonConvert.DeserializeObject<JObject>(Convert.ToString(obj["stm_stm_yolo_boxcreated"]));
 
             return 1;
         }
@@ -131,6 +136,10 @@ public class DataManager
         sb.AppendLine($"  AGV Sort 도착: {stm_stm_yolo_agvsortarrived}");
         sb.AppendLine($"  AGV Sort 출발: {stm_stm_yolo_agvsortdeparted}");
         sb.AppendLine();
+
+        // box 생성 여부 확인
+        sb.AppendLine("[ BOX 생성 여부 ]");
+        sb.AppendLine($"  BOX 생성 여부: {stm_stm_yolo_boxcreated.ToString(Formatting.Indented)}");
 
         sb.AppendLine("================================");
 

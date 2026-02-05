@@ -1,4 +1,7 @@
-﻿using System.Collections;
+﻿using Newtonsoft.Json.Linq;
+using System;
+using System.Collections;
+using System.Drawing;
 using UnityEngine;
 
 /// <summary>
@@ -15,32 +18,38 @@ public class Loader : MonoBehaviour
     [SerializeField] GameObject Box_A;
     [SerializeField] GameObject Box_B;
     [SerializeField] GameObject Box_C;
-    bool isLoaded = false;
 
+    [Header("생성 위치")]
+    [SerializeField] GameObject LocationObj;
+
+    bool isLoaded = false;
+    private string lastTime = string.Empty;
     // Update is called once per frame
     void Update()
     {
-        if(loadSignal && !isLoaded)
-        {
-            isLoaded = true;
+        JObject boxObj = DataManager.Instance.stm_stm_yolo_boxcreated;
+        if (boxObj == null) return;
 
-            if(count % 2 == 0)
-            {
-                GameObject obj = Instantiate(Box_A, this.transform);
-                obj.transform.localPosition = Vector3.zero;
-            }
-            else
-            {
-                GameObject obj = Instantiate(Box_B, this.transform);
-                obj.transform.localPosition = Vector3.zero;
-            }
+        int size = boxObj["size"].Value<int>();
+        //f (size == "999") return;
 
-            count++;
-        }
+        string nowTime = boxObj["timestamp"]?.ToString();
+        if (string.IsNullOrEmpty(nowTime)) return;
 
-        if(!loadSignal)
-        {
-            isLoaded = false;
-        }
+
+        if (lastTime == nowTime) return;
+        lastTime = nowTime;
+
+        SpawnBox(size);
+    }
+
+    void SpawnBox(int size)
+    {
+        GameObject prefab = (size % 2 == 0) ? Box_A : Box_B;
+
+        if (size == 999) prefab = Box_C;        // 테스트용
+        GameObject obj = Instantiate(prefab, transform);
+
+        obj.transform.position = LocationObj.transform.position;
     }
 }
