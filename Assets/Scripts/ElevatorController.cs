@@ -13,13 +13,22 @@ public class ElevatorController : MonoBehaviour
     [SerializeField] private Transform sensor2; // 센서2 (위쪽)
     [SerializeField] private string limitBarTag = "Limitbar";
 
+    [Header("Conveyor Reference")]
+    [SerializeField] private ConveyorForLinear conveyorForLinear;
+
+    [Header("도착 판정")]
+    [SerializeField] private float arrivalThreshold = 0.5f;
+
     private float targetY;
     private bool isEmergencyReturning = false;
+    private int currentTargetFloor = 0;
+    private bool hasNotifiedArrival = false;
 
     private void Start()
     {
-        // Initial target is 1st floor
+        // Initial target is AGV floor
         targetY = floorAgvY;
+        currentTargetFloor = 0;
     }
 
     private void Update()
@@ -31,6 +40,7 @@ public class ElevatorController : MonoBehaviour
         else
         {
             MoveToTarget();
+            CheckArrival();
         }
 
         // Input examples for testing (User can replace this with actual triggers)
@@ -44,6 +54,28 @@ public class ElevatorController : MonoBehaviour
         Vector3 currentPos = transform.localPosition;
         float newY = Mathf.MoveTowards(currentPos.y, targetY, moveSpeed * Time.deltaTime);
         transform.localPosition = new Vector3(currentPos.x, newY, currentPos.z);
+    }
+
+    /// <summary>
+    /// 목표 층 도착 체크 및 ConveyorForLinear에 알림
+    /// </summary>
+    private void CheckArrival()
+    {
+        if (hasNotifiedArrival) return;
+
+        float currentY = transform.localPosition.y;
+        if (Mathf.Abs(currentY - targetY) < arrivalThreshold)
+        {
+            hasNotifiedArrival = true;
+            
+            // ConveyorForLinear에 층 도착 알림
+            if (conveyorForLinear != null)
+            {
+                conveyorForLinear.OnFloorReached(currentTargetFloor);
+            }
+            
+            Debug.Log($"<color=green>[ElevatorController]</color> {currentTargetFloor}층 도착 완료!");
+        }
     }
 
     private void ReturnToSensor()
@@ -68,6 +100,9 @@ public class ElevatorController : MonoBehaviour
     public void SetFloor(int floor)
     {
         if (isEmergencyReturning) return;
+
+        currentTargetFloor = floor;
+        hasNotifiedArrival = false;  // 새 층 이동 시 알림 상태 리셋
 
         if (floor == 0) targetY = floorAgvY; // AGV 층
         else if (floor == 1) targetY = floor1Y;

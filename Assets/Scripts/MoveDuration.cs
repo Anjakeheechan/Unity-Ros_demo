@@ -25,9 +25,9 @@ public class AGVMover : MonoBehaviour
     [SerializeField] private int loopCount = 0;
 
     // Way1: 시작 위치
-    private Vector3 way1Position = new Vector3(4.947f, 0.0683f, 8.551f);
+    private Vector3 way1Position = new Vector3(4.9299f, 0.0683f, 8.5301f);
     // Way2: 도착 위치
-    private Vector3 way2Position = new Vector3(4.947f, 0.0683f, 5.0761f);
+    private Vector3 way2Position = new Vector3(4.9299f, 0.0683f, 5.0761f);
 
     private List<WaypointAction> routeActions = new List<WaypointAction>();
 
@@ -73,7 +73,7 @@ public class AGVMover : MonoBehaviour
     void Start()
     {
         transform.position = way1Position;
-        transform.rotation = Quaternion.Euler(0, 180, 0);
+       // transform.rotation = Quaternion.Euler(0, 180, 0);
         SetupRoute();
     }
 
