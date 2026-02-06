@@ -19,7 +19,7 @@ public class ElevatorController : MonoBehaviour
     private void Start()
     {
         // Initial target is 1st floor
-        targetY = floor1Y;
+        targetY = floorAgvY;
     }
 
     private void Update()
