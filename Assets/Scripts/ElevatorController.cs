@@ -29,6 +29,7 @@ public class ElevatorController : MonoBehaviour
         // Initial target is AGV floor
         targetY = floorAgvY;
         currentTargetFloor = 0;
+        hasNotifiedArrival = true;  // 게임 시작 시 즉시 도착 알림 방지
     }
 
     private void Update()
@@ -130,6 +131,16 @@ public class ElevatorController : MonoBehaviour
     /// </summary>
     public Transform GetSensor1() => sensor1;
     public Transform GetSensor2() => sensor2;
+    
+    /// <summary>
+    /// 엘리베이터가 목표 위치에 도착했는지 확인
+    /// </summary>
+    public bool IsAtTargetPosition => Mathf.Abs(transform.localPosition.y - targetY) < arrivalThreshold;
+    
+    /// <summary>
+    /// 현재 목표 층 반환
+    /// </summary>
+    public int CurrentTargetFloor => currentTargetFloor;
 
     private void OnTriggerEnter(Collider other)
     {

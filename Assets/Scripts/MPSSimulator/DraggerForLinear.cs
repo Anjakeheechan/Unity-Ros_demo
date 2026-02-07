@@ -1,10 +1,11 @@
 using UnityEngine;
-using System;
 
 /// <summary>
-/// 리니어용 드래거
-/// DraggerForAgv와 동일한 구조로 Box 부착/분리 처리
-/// Box_A 태그 물체가 영역에 들어오면 자식으로 설정
+/// 리니어용 드래거 (원본 Dragger.cs 참고)
+/// - CW 이동 시 CW 도착하면 CCW로 텔레포트 (순회)
+/// - CCW 이동 시 CCW 도착하면 CW로 텔레포트 (순회)
+/// - OnTriggerEnter/Stay: Box 자식으로 설정
+/// - 목적지 도착 시 Box 분리 (텔레포트 직전)
 /// </summary>
 public class DraggerForLinear : MonoBehaviour
 {
@@ -13,80 +14,134 @@ public class DraggerForLinear : MonoBehaviour
     [SerializeField] private Transform ccwDestination;
     
     [Header("도착 감지")]
-    [Tooltip("목적지 도착 판정 거리")]
-    [SerializeField] private float arrivalThreshold = 0.1f;
+    [Tooltip("목적지 도착 판정 거리 (스케일에 맞게 조정)")]
+    [SerializeField] private float arrivalThreshold = 0.001f;
 
     [Header("디버그")]
-    [SerializeField] private bool showDebugLog = true;
+    [SerializeField] private bool showDebugLog = false;
 
-    [Header("상태 (읽기 전용)")]
-    [SerializeField] private bool isReturning = false;  // 복귀 중 플래그
-
-    // 현재 자식으로 있는 Box
     private GameObject attachedBox = null;
-    
-    // Box 감지 이벤트 (ConveyorForLinear에서 구독 가능)
-    public event Action OnBoxDetected;
-    
-    // CW 도착 이벤트
-    public event Action OnReachedCwDestination;
     
     // 프로퍼티
     public bool HasBox => attachedBox != null;
-    public bool IsReturning => isReturning;
+    public bool HasAnyChild => transform.childCount > 0;
     public bool IsAtCwDestination => cwDestination != null && 
         Vector3.Distance(transform.position, cwDestination.position) < arrivalThreshold;
     public bool IsAtCcwDestination => ccwDestination != null && 
         Vector3.Distance(transform.position, ccwDestination.position) < arrivalThreshold;
-    
-    // 자식 오브젝트가 하나라도 있는지 확인 (Box 태그 체크 없이)
-    public bool HasAnyChild => transform.childCount > 0;
 
     /// <summary>
-    /// 이동 (Conveyor에서 호출)
+    /// 이동 (Conveyor에서 호출) - 수정된 순회 로직
     /// </summary>
     public void Move(bool isCW, float speed)
     {
-        Transform targetDest = isCW ? cwDestination : ccwDestination;
-        if (targetDest == null) return;
-
-        Vector3 direction = targetDest.position - transform.position;
+        Vector3 targetPos;
+        Vector3 teleportPos;
+        
+        if (isCW)
+        {
+            targetPos = cwDestination.position;
+            teleportPos = ccwDestination.position;
+        }
+        else
+        {
+            targetPos = ccwDestination.position;
+            teleportPos = cwDestination.position;
+        }
+        
+        // 현재 위치에서 목적지까지의 거리 계산
+        Vector3 direction = targetPos - transform.position;
         float distance = direction.magnitude;
-
+        
+        // 목적지 도착 체크 (현재 거리 기준!)
         if (distance < arrivalThreshold)
         {
-            // CW 목적지 도착 시 이벤트 발생
-            if (isCW && IsAtCwDestination)
+            DetachAllBoxes();  // 먼저 Box 분리
+            transform.position = teleportPos;  // 텔레포트
+            
+            if (showDebugLog)
             {
-                OnReachedCwDestination?.Invoke();
+                string fromTo = isCW ? "CW → CCW" : "CCW → CW";
+                Debug.Log($"<color=cyan>[DraggerForLinear]</color> {gameObject.name} {fromTo} 텔레포트");
             }
-            return;
+            return;  // 이번 프레임은 이동 안함
         }
-
+        
+        // 이동
         transform.position += direction.normalized * speed * Time.deltaTime;
     }
 
     /// <summary>
-    /// 복귀 모드 설정 - 복귀 중에는 Box를 자식으로 설정하지 않음
+    /// Box가 Dragger 영역에 진입하면 자식으로 설정
     /// </summary>
-    public void SetReturning(bool returning)
+    private void OnTriggerEnter(Collider other)
     {
-        isReturning = returning;
-        if (showDebugLog)
+        TryAttachBox(other.gameObject);
+    }
+
+    /// <summary>
+    /// Box가 Dragger 영역에 머물면 자식으로 유지
+    /// </summary>
+    private void OnTriggerStay(Collider other)
+    {
+        if (attachedBox == null)
         {
-            Debug.Log($"<color=blue>[DraggerForLinear]</color> {gameObject.name} 복귀 모드: {returning}");
+            TryAttachBox(other.gameObject);
         }
     }
 
     /// <summary>
-    /// 즉시 CCW 위치로 이동 (리셋용)
+    /// 물체 부착 시도 - 영역에 들어온 모든 물체를 자식으로 설정
+    /// </summary>
+    private void TryAttachBox(GameObject obj)
+    {
+        if (attachedBox != null) return;
+        
+        attachedBox = obj;
+        obj.transform.SetParent(this.transform);
+        
+        if (showDebugLog)
+        {
+            Debug.Log($"<color=green>[DraggerForLinear]</color> {gameObject.name} 물체 부착: {obj.name}");
+        }
+    }
+
+    /// <summary>
+    /// 모든 자식 Box 분리 (텔레포트 전 호출)
+    /// </summary>
+    private void DetachAllBoxes()
+    {
+        if (attachedBox != null)
+        {
+            attachedBox.transform.SetParent(null);
+            
+            if (showDebugLog)
+            {
+                Debug.Log($"<color=yellow>[DraggerForLinear]</color> {gameObject.name} Box 분리: {attachedBox.name}");
+            }
+            
+            attachedBox = null;
+        }
+        
+        // 혹시 남아있는 자식 Box도 모두 분리
+        foreach (Transform child in transform)
+        {
+            if (child.tag.Contains("Box") || child.CompareTag("Box_A") || child.name.Contains("Box"))
+            {
+                child.SetParent(null);
+            }
+        }
+    }
+
+    /// <summary>
+    /// 즉시 CCW 위치로 이동 (초기 위치 리셋용)
     /// </summary>
     public void ResetToCcwPosition()
     {
         if (ccwDestination != null)
         {
             transform.position = ccwDestination.position;
-            isReturning = false;
+            
             if (showDebugLog)
             {
                 Debug.Log($"<color=gray>[DraggerForLinear]</color> {gameObject.name} CCW 위치로 리셋");
@@ -102,109 +157,7 @@ public class DraggerForLinear : MonoBehaviour
         if (cwDestination != null)
         {
             transform.position = cwDestination.position;
-            isReturning = false;
-            if (showDebugLog)
-            {
-                Debug.Log($"<color=gray>[DraggerForLinear]</color> {gameObject.name} CW 위치로 리셋");
-            }
         }
-    }
-
-    private void OnTriggerEnter(Collider other)
-    {
-        TryAttachBox(other.gameObject);
-    }
-
-    private void OnCollisionEnter(Collision collision)
-    {
-        TryAttachBox(collision.gameObject);
-    }
-
-    /// <summary>
-    /// Box 부착 시도 - 성공 시 이벤트 발생
-    /// </summary>
-    private void TryAttachBox(GameObject obj)
-    {
-        // 복귀 중이면 무시
-        if (isReturning) return;
-        
-        // Box_A 태그 또는 Box가 포함된 태그, 또는 이름에 Box가 포함된 경우
-        bool isBox = obj.CompareTag("Box_A") || 
-                     obj.tag.Contains("Box") || 
-                     obj.name.Contains("Box");
-
-        if (isBox && attachedBox == null)
-        {
-            attachedBox = obj;
-            obj.transform.SetParent(this.transform);
-            
-            if (showDebugLog)
-            {
-                Debug.Log($"<color=green>[DraggerForLinear]</color> {gameObject.name} Box 부착: {obj.name}");
-            }
-            
-            // ConveyorForLinear에 Box 감지 알림
-            OnBoxDetected?.Invoke();
-        }
-    }
-
-    private void OnTriggerStay(Collider other)
-    {
-        if (isReturning) return;
-        
-        if (attachedBox == null)
-        {
-            TryAttachBox(other.gameObject);
-        }
-    }
-
-    private void OnCollisionStay(Collision collision)
-    {
-        if (isReturning) return;
-        
-        if (attachedBox == null)
-        {
-            TryAttachBox(collision.gameObject);
-        }
-    }
-
-    /// <summary>
-    /// Box 분리
-    /// </summary>
-    public void DetachBox()
-    {
-        if (attachedBox != null)
-        {
-            attachedBox.transform.SetParent(null);
-            
-            if (showDebugLog)
-            {
-                Debug.Log($"<color=yellow>[DraggerForLinear]</color> {gameObject.name} Box 분리: {attachedBox.name}");
-            }
-            
-            attachedBox = null;
-        }
-        
-        // 자식 중 Box 태그 물체가 있으면 모두 분리
-        foreach (Transform child in transform)
-        {
-            if (child.CompareTag("Box_A") || child.tag.Contains("Box"))
-            {
-                if (showDebugLog)
-                {
-                    Debug.Log($"<color=yellow>[DraggerForLinear]</color> {gameObject.name} 자식 Box 분리: {child.name}");
-                }
-                child.SetParent(null);
-            }
-        }
-    }
-
-    /// <summary>
-    /// 현재 부착된 Box 반환
-    /// </summary>
-    public GameObject GetAttachedBox()
-    {
-        return attachedBox;
     }
 
     void OnDrawGizmosSelected()
@@ -212,13 +165,13 @@ public class DraggerForLinear : MonoBehaviour
         if (cwDestination != null)
         {
             Gizmos.color = Color.green;
-            Gizmos.DrawWireSphere(cwDestination.position, 0.1f);
+            Gizmos.DrawWireSphere(cwDestination.position, 0.01f);
             Gizmos.DrawLine(transform.position, cwDestination.position);
         }
         if (ccwDestination != null)
         {
             Gizmos.color = Color.red;
-            Gizmos.DrawWireSphere(ccwDestination.position, 0.1f);
+            Gizmos.DrawWireSphere(ccwDestination.position, 0.01f);
         }
     }
 }

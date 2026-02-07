@@ -4,7 +4,8 @@ using System.Collections;
 /// <summary>
 /// 리니어용 컨베이어 (엘리베이터 연동)
 /// - AGV층: Jogging 모드 (Box 감지 시 jogTime 동안 CW 이동)
-/// - 1층/2층: 연속 CW 모드 (Box 모두 배출될 때까지) → Dragger CW 텔레포트 → AGV층 복귀
+/// - 1층/2층: 연속 CW 모드 (일정 시간 동안 CW 이동) → AGV층 복귀
+/// Dragger는 순회 구조로 자동 텔레포트되므로 별도 리셋 불필요
 /// </summary>
 public class ConveyorForLinear : MonoBehaviour
 {
@@ -22,6 +23,8 @@ public class ConveyorForLinear : MonoBehaviour
     [SerializeField] private float speed = 1f;
     [Tooltip("AGV층 Box 감지 시 이동 시간 (초)")]
     [SerializeField] private float jogTime = 3f;
+    [Tooltip("1층/2층에서 CW 이동 시간 (초)")]
+    [SerializeField] private float floorTransferTime = 5f;
 
     [Header("엘리베이터 연동")]
     [SerializeField] private ElevatorController elevatorController;
@@ -85,14 +88,15 @@ public class ConveyorForLinear : MonoBehaviour
             case 0:
                 currentFloorMode = FloorMode.AgvFloor;
                 jogDisabled = false;  // AGV층 도착 시 Jog 활성화
+                ResetDraggersToInitialPosition();  // Dragger 초기 위치로 리셋
                 break;
             case 1:
                 currentFloorMode = FloorMode.Floor1;
-                StartContinuousCW();
+                StartFloorTransfer();
                 break;
             case 2:
                 currentFloorMode = FloorMode.Floor2;
-                StartContinuousCW();
+                StartFloorTransfer();
                 break;
         }
     }
@@ -105,7 +109,7 @@ public class ConveyorForLinear : MonoBehaviour
     {
         foreach (var dragger in draggers)
         {
-            if (dragger != null && dragger.HasBox)
+            if (dragger != null && dragger.HasAnyChild)
             {
                 if (showDebugLog)
                 {
@@ -142,22 +146,12 @@ public class ConveyorForLinear : MonoBehaviour
                 if (dragger != null) dragger.Move(true, speed);  // CW
             }
 
-            // 첫 번째 Dragger CW 도착 체크
-            if (draggers.Length > 0 && draggers[0] != null && draggers[0].IsAtCwDestination)
-            {
-                if (showDebugLog)
-                {
-                    Debug.Log("<color=red>[ConveyorForLinear]</color> 첫 번째 Dragger CW 도착! Jogging 중지!");
-                }
-                jogDisabled = true;
-                break;
-            }
-
             elapsed += Time.deltaTime;
             yield return null;
         }
 
         isRunning = false;
+        jogDisabled = true;  // Jogging 완료 후 다시는 자동 시작 안함
 
         if (showDebugLog)
         {
@@ -169,38 +163,38 @@ public class ConveyorForLinear : MonoBehaviour
 
     #region 1층/2층 - 연속 CW 모드
 
-    private void StartContinuousCW()
+    private void StartFloorTransfer()
     {
         StopCurrentRoutine();
-        currentRoutine = StartCoroutine(ContinuousCWRoutine());
+        currentRoutine = StartCoroutine(FloorTransferRoutine());
     }
 
-    private IEnumerator ContinuousCWRoutine()
+    private IEnumerator FloorTransferRoutine()
     {
         isRunning = true;
+        float elapsed = 0f;
 
         if (showDebugLog)
         {
-            Debug.Log($"<color=cyan>[ConveyorForLinear]</color> {currentFloorMode} 연속 CW 시작! Box 배출까지 계속 이동");
+            Debug.Log($"<color=cyan>[ConveyorForLinear]</color> {currentFloorMode} 연속 CW 시작! 시간: {floorTransferTime}초");
         }
 
-        // 모든 Dragger에서 자식이 없어질 때까지 CW 이동
-        while (HasAnyBoxInDraggers())
+        // floorTransferTime 동안 CW 이동 (Dragger가 순회하면서 Box는 자동으로 분리됨)
+        while (elapsed < floorTransferTime)
         {
             foreach (var dragger in draggers)
             {
                 if (dragger != null) dragger.Move(true, speed);  // CW
             }
+
+            elapsed += Time.deltaTime;
             yield return null;
         }
 
         if (showDebugLog)
         {
-            Debug.Log("<color=yellow>[ConveyorForLinear]</color> 모든 Box 배출 완료!");
+            Debug.Log("<color=yellow>[ConveyorForLinear]</color> 층 이송 완료!");
         }
-
-        // 모든 Dragger를 CW Destination으로 텔레포트
-        TeleportDraggersToCW();
 
         yield return new WaitForSeconds(0.5f);
 
@@ -208,40 +202,6 @@ public class ConveyorForLinear : MonoBehaviour
         ReturnToAgvFloor();
 
         isRunning = false;
-    }
-
-    /// <summary>
-    /// 어떤 Dragger에라도 자식(Box)이 있는지 확인
-    /// </summary>
-    private bool HasAnyBoxInDraggers()
-    {
-        foreach (var dragger in draggers)
-        {
-            if (dragger != null && dragger.HasAnyChild)
-            {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /// <summary>
-    /// 모든 Dragger를 CW Destination으로 텔레포트
-    /// </summary>
-    private void TeleportDraggersToCW()
-    {
-        foreach (var dragger in draggers)
-        {
-            if (dragger != null)
-            {
-                dragger.ResetToCwPosition();
-            }
-        }
-
-        if (showDebugLog)
-        {
-            Debug.Log("<color=magenta>[ConveyorForLinear]</color> 모든 Dragger CW 위치로 텔레포트");
-        }
     }
 
     /// <summary>
@@ -278,6 +238,25 @@ public class ConveyorForLinear : MonoBehaviour
         isRunning = false;
     }
 
+    /// <summary>
+    /// 모든 Dragger를 초기 위치(CCW)로 리셋
+    /// </summary>
+    private void ResetDraggersToInitialPosition()
+    {
+        foreach (var dragger in draggers)
+        {
+            if (dragger != null)
+            {
+                dragger.ResetToCcwPosition();
+            }
+        }
+
+        if (showDebugLog)
+        {
+            Debug.Log("<color=magenta>[ConveyorForLinear]</color> 모든 Dragger 초기 위치(CCW)로 리셋");
+        }
+    }
+
     public void StartManualCW()
     {
         manualCW = true;
@@ -296,8 +275,8 @@ public class ConveyorForLinear : MonoBehaviour
         manualCCW = false;
     }
 
-    [ContextMenu("Reset All Draggers to CCW")]
-    public void ResetAllDraggersToCcw()
+    [ContextMenu("Reset All")]
+    public void ResetAll()
     {
         StopCurrentRoutine();
 
@@ -305,8 +284,6 @@ public class ConveyorForLinear : MonoBehaviour
         {
             if (dragger != null)
             {
-                dragger.DetachBox();
-                dragger.SetReturning(false);
                 dragger.ResetToCcwPosition();
             }
         }
@@ -318,31 +295,7 @@ public class ConveyorForLinear : MonoBehaviour
 
         if (showDebugLog)
         {
-            Debug.Log("<color=magenta>[ConveyorForLinear]</color> 모든 드래거 CCW 리셋 + AGV층 모드");
-        }
-    }
-
-    [ContextMenu("Reset All Draggers to CW")]
-    public void ResetAllDraggersToCw()
-    {
-        StopCurrentRoutine();
-
-        foreach (var dragger in draggers)
-        {
-            if (dragger != null)
-            {
-                dragger.DetachBox();
-                dragger.SetReturning(false);
-                dragger.ResetToCwPosition();
-            }
-        }
-
-        manualCW = false;
-        manualCCW = false;
-
-        if (showDebugLog)
-        {
-            Debug.Log("<color=magenta>[ConveyorForLinear]</color> 모든 드래거 CW 리셋");
+            Debug.Log("<color=magenta>[ConveyorForLinear]</color> 전체 리셋 완료");
         }
     }
 
