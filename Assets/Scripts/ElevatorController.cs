@@ -34,6 +34,11 @@ public class ElevatorController : MonoBehaviour
 
     private void Update()
     {
+        if (DataManager.Instance.stm_stm_yolo_currentstate != "RUNNING")
+        {
+            return;
+        }
+
         if (isEmergencyReturning)
         {
             ReturnToSensor();
@@ -45,9 +50,33 @@ public class ElevatorController : MonoBehaviour
         }
 
         // Input examples for testing (User can replace this with actual triggers)
-        if (Input.GetKeyDown(KeyCode.Alpha1)) SetFloor(1);
-        if (Input.GetKeyDown(KeyCode.Alpha2)) SetFloor(2);
-        if (Input.GetKeyDown(KeyCode.Alpha0)) SetFloor(0); // AGV 층
+        //if (Input.GetKeyDown(KeyCode.Alpha1)) SetFloor(1);
+        //if (Input.GetKeyDown(KeyCode.Alpha2)) SetFloor(2);
+        //if (Input.GetKeyDown(KeyCode.Alpha0)) SetFloor(0); // AGV 층
+
+        if (
+            DataManager.Instance.stm_stm_yolo_agvloadarrived &&
+            DataManager.Instance.stm_stm_yolo_isliftmoving &&
+            DataManager.Instance.stm_stm_yolo_currentfloor == 1
+            )
+        {
+            // 조건
+            // 1. agv 가 lift에 도착
+            // 2. 리프트 위치 1층
+            // 3. 리프트가 이동
+            // => agv 도착 후 리프트가 1층으로 이동할 때
+            SetFloor(1);
+        }
+
+        if (
+            DataManager.Instance.stm_stm_yolo_agvloaddeparted &&
+            DataManager.Instance.stm_stm_yolo_isliftmoving &&
+            DataManager.Instance.stm_stm_yolo_currentfloor == 0
+            )
+        {
+            SetFloor(0);
+        }
+
     }
 
     private void MoveToTarget()

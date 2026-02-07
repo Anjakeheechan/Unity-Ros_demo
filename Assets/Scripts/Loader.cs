@@ -27,6 +27,11 @@ public class Loader : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+        if (DataManager.Instance.stm_stm_yolo_currentstate != "RUNNING")
+        {
+            return;
+        }
+
         JObject boxObj = DataManager.Instance.stm_stm_yolo_boxcreated;
         if (boxObj == null) return;
 

@@ -104,6 +104,11 @@ public class AGVMover : MonoBehaviour
 
     void Update()
     {
+        if (DataManager.Instance.stm_stm_yolo_currentstate != "RUNNING")
+        {
+            return;
+        }
+
         HandleInput();
 
         if (isExecutingRoute && !isPaused)
